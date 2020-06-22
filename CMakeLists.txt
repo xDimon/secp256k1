@@ -34,7 +34,10 @@ include_directories(
 
 # The library
 add_library(secp256k1 src/secp256k1.c)
-target_include_directories(secp256k1 PUBLIC include)
+target_include_directories(
+		${PROJECT_NAME} INTERFACE
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
 
 # We need to link in GMP
 find_package(GMP)
@@ -108,24 +111,11 @@ if(SECP256K1_ENABLE_MODULE_ECDH)
 	add_secp256k1_bench(bench_ecdh src/bench_ecdh.c)
 endif()
 
-## MultiSet module
-#option(SECP256K1_ENABLE_MODULE_MULTISET "Build libsecp256k1's MULTISET module" ON)
-#if(SECP256K1_ENABLE_MODULE_MULTISET)
-#    set(ENABLE_MODULE_MULTISET 1)
-#	add_secp256k1_bench(bench_multiset src/bench_multiset.c)
-#endif()
-
 # Recovery module
 option(SECP256K1_ENABLE_MODULE_RECOVERY "Build libsecp256k1's recovery module" ON)
 if(SECP256K1_ENABLE_MODULE_RECOVERY)
 	set(ENABLE_MODULE_RECOVERY 1)
 	add_secp256k1_bench(bench_recover src/bench_recover.c)
-endif()
-
-# Schnorr module
-option(SECP256K1_ENABLE_MODULE_SCHNORR "Build libsecp256k1's Schnorr module" ON)
-if(SECP256K1_ENABLE_MODULE_SCHNORR)
-	set(ENABLE_MODULE_SCHNORR 1)
 endif()
 
 # Static precomputation for eliptic curve mutliplication
@@ -164,7 +154,7 @@ if(SECP256K1_BUILD_TEST)
 	create_test_suite(secp256k1)
 
 	function(create_secp256k1_test NAME FILES)
-		add_test_to_suite(secp256k1 ${NAME} EXCLUDE_FROM_ALL ${FILES})
+		add_test_to_suite(secp256k1 ${NAME} ${FILES})
 		link_secp256k1_internal(${NAME})
 	endfunction()
 
@@ -181,3 +171,33 @@ endif(SECP256K1_BUILD_TEST)
 add_secp256k1_bench(bench_verify src/bench_verify.c)
 add_secp256k1_bench(bench_sign src/bench_sign.c)
 add_secp256k1_bench(bench_internal src/bench_internal.c)
+
+include(GNUInstallDirs)
+
+function(install_target targets config)
+    install(TARGETS ${targets} EXPORT ${config}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FRAMEWORK DESTINATION ${CMAKE_INSTALL_PREFIX}
+    )
+endfunction()
+
+set(CONFIG_NAME "${PROJECT_NAME}Config")
+
+install_target(${PROJECT_NAME} ${CONFIG_NAME})
+
+install(
+    DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+set(CONFIG_DESTINATION_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
+
+install(
+    EXPORT ${CONFIG_NAME}
+    NAMESPACE libsecp256k1::
+    DESTINATION ${CONFIG_DESTINATION_DIR}
+)
